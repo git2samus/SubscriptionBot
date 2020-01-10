@@ -1,0 +1,2 @@
+# SubscriptionBot
+Reddit Subscription Bot
