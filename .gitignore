@@ -1,3 +1,6 @@
+# PRAW settings - https://praw.readthedocs.io/en/latest/getting_started/configuration/prawini.html
+praw.ini
+
 # Created by https://www.gitignore.io/api/python,virtualenv
 # Edit at https://www.gitignore.io/?templates=python,virtualenv
 
