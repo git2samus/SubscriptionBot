@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Feed Parser
 
-Usage: bot.py feed <subreddit> [--refresh=<interval>] [--sticky] [--after=<submission-url>]
+Usage: bot.py feed <subreddit> [--refresh=<interval>] [--sticky] [--after=<submission-url>] [--debug]
        bot.py feed -h | --help
 
 Options:
@@ -9,6 +9,7 @@ Options:
     --sticky                    Whether or not to make bot comments sticky on posts (requires bot permissions on Reddit)
     --after=<submission-url>    Only process submissions newer than <submission-url> (if omitted will process any new submission since started)
                                 Accepts formats supported by https://praw.readthedocs.io/en/latest/code_overview/models/submission.html#praw.models.Submission.id_from_url
+    --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
 When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit at <interval> seconds
@@ -95,6 +96,9 @@ class FeedProcess(object):
 
 if __name__ == '__main__':
     args = docopt(__doc__)
+
+    if args['--debug']:
+        setup_http_debugging()
 
     subreddit, interval, sticky = args['<subreddit>'], args['--refresh'], args['--sticky']
     feed_process = FeedProcess(subreddit, interval, sticky)
