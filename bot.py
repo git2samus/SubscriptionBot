@@ -22,6 +22,7 @@ The bot.py commands are:
 See 'bot.py help <command>' for more information on a specific command.
 """
 import os
+from sys import exit
 from subprocess import run
 from docopt import docopt, DocoptExit
 
