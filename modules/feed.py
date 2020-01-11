@@ -41,6 +41,15 @@ class FeedProcess(object):
     def _exit_handler(self, signum, frame):
         exit(0)
 
+    def _to_short_id(self, full_id):
+        """Remove prefix from base36 id"""
+        return full_id.split('_').pop()
+
+    def _to_full_id(self, kind, short_id):
+        """Add prefix to base36 id"""
+        prefix = self.reddit.config.kinds[kind]
+        return prefix + '_' + short_id
+
     def _query_feed(self, **query):
         """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
         if self._last_timestamp is not None:
@@ -74,22 +83,21 @@ class FeedProcess(object):
             # retrieve last submission from feed
             last = self.get_last_submission()
             entries = tuple(self._parse_feed(last))
-            after_id = entries[0]
+            after_full_id = entries[0]
         else:
             # extract id from submission url or raise ValueError
-            submission_id = Submission.id_from_url(after_url)
-            submission_kind = self.reddit.config.kinds['submission']
-            after_id = f'{submission_kind}_{submission_id}'
+            after_short_id = Submission.id_from_url(after_url)
+            after_full_id = self._to_full_id('submission', after_short_id)
 
         while True:
             # we'll output from oldest to newest but Reddit shows newest first on its feed
             # in order to retrieve the entries published "after" the given one
             # we need to ask for the ones that appear "before" that one in the feed
-            response = self._query_feed(before=after_id)
-            for submission_id in reversed(tuple(self._parse_feed(response))):
-                yield submission_id
-                # keep track of latest submission_id for the next _query_feed call
-                after_id = submission_id
+            response = self._query_feed(before=after_full_id)
+            for submission_full_id in reversed(tuple(self._parse_feed(response))):
+                yield submission_full_id
+                # keep track of latest submission_full_id for the next _query_feed call
+                after_full_id = submission_full_id
 
     def run(self, after_url=None):
         """Start process"""
@@ -98,8 +106,8 @@ class FeedProcess(object):
         signal.signal(signal.SIGTERM, self._exit_handler)
 
         # process submissions
-        for submission in self.iter_submissions(after_url):
-            print(submission)
+        for submission_full_id in self.iter_submissions(after_url):
+            print(submission_full_id)
 
 
 if __name__ == '__main__':
