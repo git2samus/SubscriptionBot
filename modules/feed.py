@@ -22,12 +22,15 @@ from praw.models import Submission
 from docopt import docopt
 from datetime import datetime, timedelta
 from time import sleep
+from configparser import ConfigParser
+from unittest.mock import patch
 from utils import setup_http_debugging
 
 
 class FeedProcess(object):
     ATOM_NS = {'atom': 'http://www.w3.org/2005/Atom'}
 
+    @patch('praw.config.configparser.RawConfigParser', new=ConfigParser)
     def __init__(self, subreddit, interval, sticky):
         self.subreddit, self.interval, self.sticky = subreddit, int(interval), sticky
 

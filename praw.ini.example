@@ -1,0 +1,17 @@
+[<PRAW_SITE>]
+# API keys from registering the bot on Reddit
+client_id=<client-id>
+client_secret=<client-secret>
+
+# User authentication to perform actions
+username=<username>
+password=<password>
+
+# Bot configuration and user-agent
+bot_name=<bot-name>
+bot_version=<bot-version>
+bot_author=<bot-author>
+user_agent=script:%(bot_name)s:v%(bot_version)s (by /u/%(bot_author)s)
+
+# Comment template to publish the subscribe/unsubscribe message links
+bot_comment_template=<bot-comment-template>

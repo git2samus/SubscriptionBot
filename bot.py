@@ -10,7 +10,7 @@ Options:
     --version                   Show version
 
 Environment Variables:
-    PRAW_SITE                   The name of the bot and the corresponding section on praw.ini
+    PRAW_SITE                   The name of the config section on praw.ini for this process
     DATABASE_URL                URI of the Postgres instance to use
 
 The bot.py commands are:
