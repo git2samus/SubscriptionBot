@@ -84,9 +84,8 @@ class FeedProcess(object):
             response = self._query_feed(before=after_id)
             for submission_id in reversed(tuple(self._parse_feed(response))):
                 yield submission_id
-
-            # update after_id with the newest retrieved and loop
-            after_id = submission_id
+                # keep track of latest submission_id for the next _query_feed call
+                after_id = submission_id
 
     def run(self, after_url=None):
         """Start process"""
