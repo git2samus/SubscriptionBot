@@ -23,7 +23,6 @@ See 'bot.py help <command>' for more information on a specific command.
 """
 import os
 from sys import exit
-from subprocess import run
 from docopt import docopt, DocoptExit
 
 
@@ -52,21 +51,21 @@ if __name__ == '__main__':
 
     if command in subcommands:
         # run subcommand
-        exit(run(['python3', f'modules/{command}.py', command] + args).returncode)
+        os.execvp('python3', ['python3', f'modules/{command}.py', command] + args)
 
     if command == 'help' and args:
         help_command = args[0]
 
         if help_command in subcommands:
             # invoke subcommand's help
-            exit(run(['python3', f'modules/{help_command}.py', '--help']).returncode)
+            os.execvp('python3', ['python3', f'modules/{help_command}.py', '--help'])
 
         # invalid subcommand
         exit(f"{help_command} is not a bot.py command. See 'bot.py help'.")
 
     if command in ('help', None):
         # general help
-        exit(run(['python3', 'bot.py', '--help']).returncode)
+        os.execvp('python3', ['python3', 'bot.py', '--help'])
 
     # invalid subcommand
     exit(f"{command} is not a bot.py command. See 'bot.py help'.")

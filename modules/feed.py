@@ -15,8 +15,9 @@ Options:
 When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit at <interval> seconds
 For each new submission a comment from the bot will be posted following the 'bot_comment_template' string pattern from praw.ini
 """
-import praw, requests
+import praw, requests, signal
 import xml.etree.ElementTree as ET
+from sys import exit
 from praw.models import Submission
 from docopt import docopt
 from datetime import datetime, timedelta
@@ -36,6 +37,9 @@ class FeedProcess(object):
         self.http_session.headers.update({'user-agent': self.reddit.config.user_agent})
 
         self._last_timestamp = None
+
+    def _exit_handler(self, signum, frame):
+        exit(0)
 
     def _query_feed(self, **query):
         """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
@@ -89,6 +93,11 @@ class FeedProcess(object):
 
     def run(self, after_url=None):
         """Start process"""
+        # setup interrupt handlers
+        signal.signal(signal.SIGINT, self._exit_handler)
+        signal.signal(signal.SIGTERM, self._exit_handler)
+
+        # process submissions
         for submission in self.iter_submissions(after_url):
             print(submission)
 
