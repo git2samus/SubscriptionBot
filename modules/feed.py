@@ -168,7 +168,10 @@ class FeedProcess(object):
         )
 
         submission = self.reddit.submission(id=submission_short_id)
-        submission.reply(comment_msg)
+        comment = submission.reply(comment_msg)
+
+        if self.sticky:
+            comment.mod.distinguish(sticky=True)
 
     def run(self, after=None):
         """Start process"""
