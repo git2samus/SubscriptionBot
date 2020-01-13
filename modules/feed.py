@@ -8,14 +8,14 @@ Options:
     --refresh=<interval>        Interval in seconds at which the feed is requested, shorter intervals may be rate-limited by Reddit [default: 60]
     --sticky                    Whether or not to make bot comments sticky on posts (requires bot permissions on Reddit)
     --after=<submission-url>    Only process submissions newer than <submission-url> (if omitted will process any new submission since started)
-                                Accepts formats supported by https://praw.readthedocs.io/en/latest/code_overview/models/submission.html#praw.models.Submission.id_from_url
+                                Accepts Reddit IDs or URL formats supported by https://praw.readthedocs.io/en/latest/code_overview/models/submission.html#praw.models.Submission.id_from_url
     --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
 When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit at <interval> seconds
 For each new submission a comment from the bot will be posted following the 'bot_comment_template' string pattern from praw.ini
 """
-import praw, requests, signal
+import re, praw, requests, signal
 import xml.etree.ElementTree as ET
 from sys import exit
 from praw.models import Submission
@@ -107,16 +107,25 @@ class FeedProcess(object):
         """Retrieve the newest submission from the subreddit"""
         return self._query_feed(limit=1)
 
-    def iter_submissions(self, after_url=None):
+    def iter_submissions(self, after=None):
         """Infinite generator that yields submission ids in the order they were published"""
-        if after_url is None:
+        submission_prefix = self.reddit.config.kinds['submission']
+        base36_pattern = '[0-9a-z]{6}'
+
+        if after is None:
             # retrieve last submission from feed
             last = self.get_last_submission()
             entries = tuple(self._parse_feed(last))
             after_full_id = entries[0]['id']
+        elif re.fullmatch(submission_prefix + '_' + base36_pattern, after):
+            # received full_id
+            after_full_id = after
+        elif re.fullmatch(base36_pattern, after):
+            # received short_id
+            after_full_id = self._to_full_id(after)
         else:
             # extract id from submission url or raise ValueError
-            after_short_id = Submission.id_from_url(after_url)
+            after_short_id = Submission.id_from_url(after)
             after_full_id = self._to_full_id('submission', after_short_id)
 
         while True:
@@ -129,14 +138,14 @@ class FeedProcess(object):
                 # keep track of the id for the next _query_feed() call
                 after_full_id = entry_dict['id']
 
-    def run(self, after_url=None):
+    def run(self, after=None):
         """Start process"""
         # setup interrupt handlers
         signal.signal(signal.SIGINT, self._exit_handler)
         signal.signal(signal.SIGTERM, self._exit_handler)
 
         # process submissions
-        for entry_dict in self.iter_submissions(after_url):
+        for entry_dict in self.iter_submissions(after):
             print(entry_dict)
 
 
@@ -149,5 +158,5 @@ if __name__ == '__main__':
     subreddit, interval, sticky = args['<subreddit>'], args['--refresh'], args['--sticky']
     feed_process = FeedProcess(subreddit, interval, sticky)
 
-    after_url = args['--after']
-    feed_process.run(after_url)
+    after = args['--after']
+    feed_process.run(after)
