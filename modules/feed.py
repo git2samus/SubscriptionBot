@@ -71,10 +71,37 @@ class FeedProcess(object):
         """Get a feed response and return a generator of submission ids"""
         root_elem = ET.fromstring(response.text)
 
-        entries = root_elem.findall('atom:entry', self.ATOM_NS)
+        entries = root_elem.iterfind('atom:entry', self.ATOM_NS)
         for entry_elem in entries:
-            id_elem = entry_elem.find('atom:id', self.ATOM_NS)
-            yield id_elem.text
+            author_elem = entry_elem.find('atom:author', self.ATOM_NS)
+            author = {
+                'name': author_elem.find('atom:name', self.ATOM_NS).text,
+                'uri': author_elem.find('atom:uri', self.ATOM_NS).text,
+            }
+
+            category_elem = entry_elem.find('atom:category', self.ATOM_NS)
+            category = category_elem.attrib
+
+            content = entry_elem.find('atom:content', self.ATOM_NS).text
+
+            full_id = entry_elem.find('atom:id', self.ATOM_NS).text
+
+            link = entry_elem.find('atom:link', self.ATOM_NS).attrib['href']
+
+            updated = entry_elem.find('atom:updated', self.ATOM_NS).text
+            updated_dt = datetime.strptime(updated, '%Y-%m-%dT%H:%M:%S%z')
+
+            title = entry_elem.find('atom:title', self.ATOM_NS).text
+
+            yield {
+                'author': author,
+                'category': category,
+                'content': content,
+                'id': full_id,
+                'link': link,
+                'updated': updated_dt,
+                'title': title,
+            }
 
     def get_last_submission(self):
         """Retrieve the newest submission from the subreddit"""
@@ -86,7 +113,7 @@ class FeedProcess(object):
             # retrieve last submission from feed
             last = self.get_last_submission()
             entries = tuple(self._parse_feed(last))
-            after_full_id = entries[0]
+            after_full_id = entries[0]['id']
         else:
             # extract id from submission url or raise ValueError
             after_short_id = Submission.id_from_url(after_url)
@@ -97,10 +124,10 @@ class FeedProcess(object):
             # in order to retrieve the entries published "after" the given one
             # we need to ask for the ones that appear "before" that one in the feed
             response = self._query_feed(before=after_full_id)
-            for submission_full_id in reversed(tuple(self._parse_feed(response))):
-                yield submission_full_id
-                # keep track of latest submission_full_id for the next _query_feed call
-                after_full_id = submission_full_id
+            for entry_dict in reversed(tuple(self._parse_feed(response))):
+                yield entry_dict
+                # keep track of the id for the next _query_feed() call
+                after_full_id = entry_dict['id']
 
     def run(self, after_url=None):
         """Start process"""
@@ -109,8 +136,8 @@ class FeedProcess(object):
         signal.signal(signal.SIGTERM, self._exit_handler)
 
         # process submissions
-        for submission_full_id in self.iter_submissions(after_url):
-            print(submission_full_id)
+        for entry_dict in self.iter_submissions(after_url):
+            print(entry_dict)
 
 
 if __name__ == '__main__':
