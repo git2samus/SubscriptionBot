@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from time import sleep
 from configparser import ConfigParser
 from unittest.mock import patch
+from urllib.parse import urljoin, urlencode, quote
 from utils import setup_http_debugging
 
 
@@ -138,6 +139,37 @@ class FeedProcess(object):
                 # keep track of the id for the next _query_feed() call
                 after_full_id = entry_dict['id']
 
+    def add_bot_comment(self, entry_dict):
+        """Comment on the given submission with the links to subscribe/unsubscribe"""
+        send_message_url = urljoin(self.reddit.config.reddit_url, '/message/compose/')
+
+        bot_username = self.reddit.config.custom['bot_username']
+        submission_short_id = self._to_short_id(entry_dict['id'])
+
+        subscribe_message_params = {
+            'to': bot_username,
+            'subject': 'Subscribe ' + submission_short_id,
+            'message': self.reddit.config.custom['bot_subscribe_message_template'].format(**entry_dict),
+        }
+        subscribe_link = send_message_url + '?' + urlencode(subscribe_message_params, quote_via=quote, safe='')
+
+        unsubscribe_message_params = {
+            'to': bot_username,
+            'subject': 'Unsubscribe ' + submission_short_id,
+            'message': self.reddit.config.custom['bot_unsubscribe_message_template'].format(**entry_dict),
+        }
+        unsubscribe_link = send_message_url + '?' + urlencode(unsubscribe_message_params, quote_via=quote, safe='')
+
+        comment_template = self.reddit.config.custom['bot_submission_comment_template']
+        comment_msg = comment_template.format(
+            subscribe_link=subscribe_link,
+            unsubscribe_link=unsubscribe_link,
+            **self.reddit.config.custom
+        )
+
+        submission = self.reddit.submission(id=submission_short_id)
+        submission.reply(comment_msg)
+
     def run(self, after=None):
         """Start process"""
         # setup interrupt handlers
@@ -146,7 +178,7 @@ class FeedProcess(object):
 
         # process submissions
         for entry_dict in self.iter_submissions(after):
-            print(entry_dict)
+            self.add_bot_comment(entry_dict)
 
 
 if __name__ == '__main__':

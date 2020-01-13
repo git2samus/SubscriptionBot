@@ -9,9 +9,12 @@ password=<password>
 
 # Bot configuration and user-agent
 bot_name=<bot-name>
+bot_username=%(bot_name)s
 bot_version=<bot-version>
 bot_author=<bot-author>
 user_agent=script:%(bot_name)s:v%(bot_version)s (by /u/%(bot_author)s)
 
 # Comment template to publish the subscribe/unsubscribe message links
-bot_comment_template=<bot-comment-template>
+bot_submission_comment_template=<bot-submission-comment-template>
+bot_subscribe_message_template=<bot-subscribe-message-template>
+bot_unsubscribe_message_template=<bot-unsubscribe-message-template>
