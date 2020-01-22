@@ -60,16 +60,16 @@ if __name__ == '__main__':
     global_args = docopt(__doc__, version=f'Reddit SubscriptionBot v{__version__}', options_first=True)
 
     # we'll use the lowercase variant of PRAW_SITE as the reference since that's what praw uses
-    praw_site = os.environ.get('PRAW_SITE')
+    praw_site = os.getenv('PRAW_SITE')
     if praw_site is not None:
         os.environ['praw_site'] = praw_site
 
     # check the arguments to see if any has set the value
-    praw_site = os.environ.get('praw_site')
+    praw_site = os.getenv('praw_site')
     if praw_site is None:
         raise DocoptExit("Missing PRAW_SITE value.\n")
 
-    database_url = os.environ.get('DATABASE_URL')
+    database_url = os.getenv('DATABASE_URL')
     if database_url is None:
         raise DocoptExit("Missing DATABASE_URL value.\n")
 
