@@ -16,59 +16,48 @@ Options:
 When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit at <interval> seconds
 For each new submission a comment from the bot will be posted following the 'bot_comment_template' string pattern from praw.ini
 """
-import os, re, signal
-import praw, requests, psycopg2
+import re
+import requests
 import xml.etree.ElementTree as ET
-from sys import exit
 from praw.models import Submission
 from docopt import docopt
 from datetime import datetime, timedelta
 from time import sleep
-from configparser import ConfigParser
 from contextlib import closing
-from unittest.mock import patch
 from urllib.parse import urljoin, urlencode, quote
+from base import BaseProcess
 from utils import setup_http_debugging
 
 
-class FeedProcess(object):
+class FeedProcess(BaseProcess):
     ATOM_NS = {'atom': 'http://www.w3.org/2005/Atom'}
 
-    @patch('praw.config.configparser.RawConfigParser', new=ConfigParser)
     def __init__(self, subreddit, interval, sticky):
-        self.subreddit, self.interval, self.sticky = subreddit, int(interval), sticky
+        # create PRAW instance and db connection
+        super().__init__()
 
-        self.reddit = praw.Reddit()
+        self.subreddit, self.interval, self.sticky = subreddit, int(interval), sticky
 
         self.http_session = requests.Session()
         self.http_session.headers.update({'user-agent': self.reddit.config.user_agent})
-
-        self.conn = psycopg2.connect(os.getenv('DATABASE_URL'))
 
         self._after_full_id = None
         self._last_timestamp = None
 
     def _exit_handler(self, signum, frame):
         if self._after_full_id is not None:
-            with closing(self.conn.cursor()) as cur:
+            with closing(self.db.cursor()) as cur:
                 cur.execute("""
                     INSERT INTO kv_store VALUES('after_full_id', %s)
                     ON CONFLICT ON CONSTRAINT kv_store_pkey
                         DO UPDATE SET value=%s WHERE kv_store.key='after_full_id';
                 """, (self._after_full_id, self._after_full_id,))
 
-        self.conn.commit()
-        self.conn.close()
-        exit(0)
+        self.db.commit()
+        self.db.close()
 
-    def _to_short_id(self, full_id):
-        """Remove prefix from base36 id"""
-        return full_id.split('_').pop()
-
-    def _to_full_id(self, kind, short_id):
-        """Add prefix to base36 id"""
-        prefix = self.reddit.config.kinds[kind]
-        return prefix + '_' + short_id
+        # terminate process
+        super()._exit_handler(signum, frame)
 
     def _query_feed(self, **query):
         """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
@@ -127,11 +116,10 @@ class FeedProcess(object):
     def iter_submissions(self, after=None):
         """Infinite generator that yields submission ids in the order they were published"""
         submission_prefix = self.reddit.config.kinds['submission']
-        base36_pattern = '[0-9a-z]{6}'
 
         if after is None:
             # check if we've stored the id on the previous run
-            with closing(self.conn.cursor()) as cur:
+            with closing(self.db.cursor()) as cur:
                 cur.execute("""
                     SELECT value FROM kv_store WHERE key = 'after_full_id';
                 """)
@@ -144,10 +132,10 @@ class FeedProcess(object):
                 last = self.get_last_submission()
                 entries = tuple(self._parse_feed(last))
                 self._after_full_id = entries[0]['id']
-        elif re.fullmatch(submission_prefix + '_' + base36_pattern, after):
+        elif re.fullmatch(submission_prefix + '_' + self.base36_pattern, after):
             # received full_id
             self._after_full_id = after
-        elif re.fullmatch(base36_pattern, after):
+        elif re.fullmatch(self.base36_pattern, after):
             # received short_id
             self._after_full_id = self._to_full_id(after)
         else:
@@ -202,8 +190,7 @@ class FeedProcess(object):
     def run(self, after=None):
         """Start process"""
         # setup interrupt handlers
-        signal.signal(signal.SIGINT, self._exit_handler)
-        signal.signal(signal.SIGTERM, self._exit_handler)
+        super().run()
 
         # process submissions
         for entry_dict in self.iter_submissions(after):
