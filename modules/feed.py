@@ -53,9 +53,6 @@ class FeedProcess(BaseProcess):
                         DO UPDATE SET value=%s WHERE kv_store.key='after_full_id';
                 """, (self._after_full_id, self._after_full_id,))
 
-        self.db.commit()
-        self.db.close()
-
         # terminate process
         super()._exit_handler(signum, frame)
 
