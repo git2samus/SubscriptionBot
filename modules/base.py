@@ -40,13 +40,16 @@ class BaseProcess(object):
 
         with closing(self.db.cursor()) as cur:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS kv_store(key VARCHAR(32) PRIMARY KEY, value VARCHAR(256));
+                CREATE TABLE IF NOT EXISTS kv_store(
+                    key VARCHAR(32),
+                    value VARCHAR(256),
+                        CONSTRAINT kv_store_pkey PRIMARY KEY(key));
             """)
             self.db.commit()
 
             # get current db version (if any)
             cur.execute("""
-                SELECT value FROM kv_store WHERE key = 'version';
+                SELECT value FROM kv_store WHERE key='version';
             """)
             res = cur.fetchone()
 
@@ -57,9 +60,18 @@ class BaseProcess(object):
             else:
                 # create remaining tables and save version
                 cur.execute("""
-                    CREATE TABLE subscription(submission_id CHAR(6), user_id CHAR(6), PRIMARY KEY(submission_id, user_id));
-                    CREATE TABLE comment_count(submission_id CHAR(6), submission_date DATE, comment_count INTEGER DEFAULT 0, PRIMARY KEY(submission_id, submission_date));
-                    INSERT INTO kv_store VALUES('version', %s);
+                    CREATE TABLE subscription(
+                        submission_id CHAR(6),
+                        user_id CHAR(6),
+                            CONSTRAINT subscription_pkey PRIMARY KEY(submission_id, user_id));
+
+                    CREATE TABLE comment_count(
+                        submission_id CHAR(6),
+                        submission_date DATE,
+                        comment_count INTEGER DEFAULT 0,
+                            CONSTRAINT comment_count_pkey PRIMARY KEY(submission_id, submission_date));
+
+                    INSERT INTO kv_store(key, value) VALUES ('version', %s);
                 """, (source_version,))
                 self.db.commit()
 

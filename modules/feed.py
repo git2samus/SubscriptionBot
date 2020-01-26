@@ -48,10 +48,11 @@ class FeedProcess(BaseProcess):
         if self._after_full_id is not None:
             with closing(self.db.cursor()) as cur:
                 cur.execute("""
-                    INSERT INTO kv_store VALUES('after_full_id', %s)
+                    INSERT INTO kv_store(key, value) VALUES('feed_after_full_id', %s)
                     ON CONFLICT ON CONSTRAINT kv_store_pkey
-                        DO UPDATE SET value=%s WHERE kv_store.key='after_full_id';
+                        DO UPDATE SET value=%s WHERE kv_store.key='feed_after_full_id';
                 """, (self._after_full_id, self._after_full_id,))
+                self.db.commit()
 
         # terminate process
         super()._exit_handler(signum, frame)
@@ -118,7 +119,7 @@ class FeedProcess(BaseProcess):
             # check if we've stored the id on the previous run
             with closing(self.db.cursor()) as cur:
                 cur.execute("""
-                    SELECT value FROM kv_store WHERE key = 'after_full_id';
+                    SELECT value FROM kv_store WHERE key='feed_after_full_id';
                 """)
                 res = cur.fetchone()
 
