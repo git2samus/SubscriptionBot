@@ -21,6 +21,29 @@ from utils import setup_http_debugging
 class InboxProcess(BaseProcess):
     message_re = re.compile(f'(Subscribe|Unsubscribe) ({BaseProcess.base36_pattern})')
 
+    def __init__(self):
+        # create PRAW instance and db connection
+        super().__init__()
+
+        self._seen_items = []
+
+    def _exit_handler(self, signum, frame):
+        self._flush_seen()
+
+        # terminate process
+        super()._exit_handler(signum, frame)
+
+    def _flush_seen(self):
+        self.reddit.inbox.mark_read(self._seen_items)
+        self._seen_items = []
+
+    def _add_seen(self, item):
+        self._seen_items.append(item)
+
+        # https://praw.readthedocs.io/en/latest/code_overview/reddit/inbox.html#praw.models.Inbox.mark_read
+        if len(self._seen_items) >= 25:
+            self._flush_seen()
+
     def process_message(self, message):
         match = self.message_re.fullmatch(message.subject)
         if match:
@@ -53,17 +76,13 @@ class InboxProcess(BaseProcess):
         # setup interrupt handlers
         super().run()
 
-        seen_items = []
         for item in self.reddit.inbox.stream():
             if isinstance(item, Message):
                 self.process_message(item)
             else:
                 self.forward_item(item)
 
-            # https://praw.readthedocs.io/en/latest/code_overview/reddit/inbox.html#praw.models.Inbox.mark_read
-            seen_items.append(item)
-            if len(seen_items) >= 25:
-                self.reddit.inbox.mark_read(seen_items)
+            self._add_seen(item)
 
 
 if __name__ == '__main__':
