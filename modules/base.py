@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 
 class BaseProcess(object):
-    base36_pattern = '[0-9a-z]{6}'
+    base36_pattern = '[0-9a-z]+'
 
     @patch('praw.config.configparser.RawConfigParser', new=ConfigParser)
     def __init__(self):
@@ -61,12 +61,12 @@ class BaseProcess(object):
                 # create remaining tables and save version
                 cur.execute("""
                     CREATE TABLE subscription(
-                        submission_id CHAR(6),
+                        submission_id VARCHAR(16),
                         user_name VARCHAR(256),
                             CONSTRAINT subscription_pkey PRIMARY KEY(submission_id, user_name));
 
                     CREATE TABLE comment_count(
-                        submission_id CHAR(6),
+                        submission_id VARCHAR(16),
                         submission_date DATE,
                         comment_count INTEGER DEFAULT 0,
                             CONSTRAINT comment_count_pkey PRIMARY KEY(submission_id, submission_date));
