@@ -62,8 +62,8 @@ class BaseProcess(object):
                 cur.execute("""
                     CREATE TABLE subscription(
                         submission_id CHAR(6),
-                        user_id CHAR(6),
-                            CONSTRAINT subscription_pkey PRIMARY KEY(submission_id, user_id));
+                        user_name VARCHAR(256),
+                            CONSTRAINT subscription_pkey PRIMARY KEY(submission_id, user_name));
 
                     CREATE TABLE comment_count(
                         submission_id CHAR(6),

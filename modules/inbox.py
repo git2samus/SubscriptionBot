@@ -10,17 +10,42 @@ Options:
 
 This command runs the process that monitors the bot's inbox for subscribe/unsusbscribe messages.
 """
+import re
 from praw.models import Message
 from docopt import docopt
+from contextlib import closing
 from base import BaseProcess
 from utils import setup_http_debugging
 
 
 class InboxProcess(BaseProcess):
-    def process_message(self, item):
-        print(f'Process {item.__class__}:{item}')
+    message_re = re.compile(f'(Subscribe|Unsubscribe) ({BaseProcess.base36_pattern})')
 
-    def forward_message(self, item):
+    def process_message(self, message):
+        match = self.message_re.fullmatch(message.subject)
+        if match:
+            submission_short_id = match.group(2)
+            # using 'name' instead of 'id' to avoid an extra request to the API
+            user_name = message.author.name
+
+            if match.group(1) == 'Subscribe':
+                query_sql = """
+                    INSERT INTO subscription(submission_id, user_name) VALUES (%s, %s)
+                    ON CONFLICT ON CONSTRAINT subscription_pkey
+                        DO NOTHING;
+                """
+            else:
+                query_sql = """
+                    DELETE FROM subscription WHERE submission_id=%s AND user_name=%s;
+                """
+
+            with closing(self.db.cursor()) as cur:
+                cur.execute(query_sql, (submission_short_id, user_name))
+                self.db.commit()
+        else:
+            self.forward_item(message)
+
+    def forward_item(self, item):
         print(f'Forward {item.__class__}:{item}')
 
     def run(self):
@@ -33,7 +58,7 @@ class InboxProcess(BaseProcess):
             if isinstance(item, Message):
                 self.process_message(item)
             else:
-                self.forward_message(item)
+                self.forward_item(item)
 
             # https://praw.readthedocs.io/en/latest/code_overview/reddit/inbox.html#praw.models.Inbox.mark_read
             seen_items.append(item)
