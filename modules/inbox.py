@@ -14,12 +14,12 @@ import re
 from praw.models import Message
 from docopt import docopt
 from contextlib import closing
-from base import BaseProcess
+from base import APIProcess
 from utils import setup_http_debugging
 
 
-class InboxProcess(BaseProcess):
-    message_re = re.compile(f'(Subscribe|Unsubscribe) ({BaseProcess.base36_pattern})')
+class InboxProcess(APIProcess):
+    message_re = re.compile(f'(Subscribe|Unsubscribe) ({APIProcess.base36_pattern})')
 
     def __init__(self):
         # create PRAW instance and db connection

@@ -6,7 +6,7 @@ from contextlib import closing
 from unittest.mock import patch
 
 
-class BaseProcess(object):
+class APIProcess(object):
     base36_pattern = '[0-9a-z]+'
 
     @patch('praw.config.configparser.RawConfigParser', new=ConfigParser)
@@ -79,3 +79,75 @@ class BaseProcess(object):
         # setup interrupt handlers
         signal.signal(signal.SIGINT, self._exit_handler)
         signal.signal(signal.SIGTERM, self._exit_handler)
+
+
+class XMLProcess(APIProcess):
+    ATOM_NS = {'atom': 'http://www.w3.org/2005/Atom'}
+
+    def __init__(self, subreddit, interval):
+        # create PRAW instance and db connection
+        super().__init__()
+
+        # create requests session to retrieve feeds
+        self.http_session = requests.Session()
+        self.http_session.headers.update({'user-agent': self.reddit.config.user_agent})
+
+        # feed global params
+        self.subreddit, self.interval = subreddit, int(interval)
+
+        # private (stateful) vars
+        self._last_timestamp = None
+
+    def _query_feed(self, path, **query):
+        """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
+        if self._last_timestamp is not None:
+            delay = (self._last_timestamp + timedelta(seconds=self.interval) - datetime.utcnow()).total_seconds()
+
+            if delay > 0:
+                sleep(delay)
+
+        feed_url = f'https://www.reddit.com/r/{self.subreddit}/{path}/.rss'
+        response = self.http_session.get(feed_url, params=query)
+
+        self._last_timestamp = datetime.utcnow()
+        return response
+
+    def _parse_feed(self, response):
+        """Get a feed response and return a generator of submission dicts"""
+        root_elem = ET.fromstring(response.text)
+
+        entries = root_elem.iterfind('atom:entry', self.ATOM_NS)
+        for entry_elem in entries:
+            author_elem = entry_elem.find('atom:author', self.ATOM_NS)
+            author = {
+                'name': author_elem.find('atom:name', self.ATOM_NS).text,
+                'uri': author_elem.find('atom:uri', self.ATOM_NS).text,
+            }
+
+            category_elem = entry_elem.find('atom:category', self.ATOM_NS)
+            category = category_elem.attrib
+
+            content = entry_elem.find('atom:content', self.ATOM_NS).text
+
+            full_id = entry_elem.find('atom:id', self.ATOM_NS).text
+
+            link = entry_elem.find('atom:link', self.ATOM_NS).attrib['href']
+
+            updated = entry_elem.find('atom:updated', self.ATOM_NS).text
+            updated_dt = datetime.strptime(updated, '%Y-%m-%dT%H:%M:%S%z')
+
+            title = entry_elem.find('atom:title', self.ATOM_NS).text
+
+            yield {
+                'author': author,
+                'category': category,
+                'content': content,
+                'id': full_id,
+                'link': link,
+                'updated': updated_dt,
+                'title': title,
+            }
+
+    def get_last_submission(self, path):
+        """Retrieve the newest submission from the subreddit"""
+        return self._query_feed(path, limit=1)
