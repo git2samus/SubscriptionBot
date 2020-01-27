@@ -1,6 +1,10 @@
-import os, signal
+import re, os, signal
 import praw, psycopg2
+import requests
+import xml.etree.ElementTree as ET
 from sys import exit
+from datetime import datetime, timedelta
+from time import sleep
 from configparser import ConfigParser
 from contextlib import closing
 from unittest.mock import patch
@@ -25,7 +29,7 @@ class APIProcess(object):
     def _to_full_id(self, kind, short_id):
         """Add prefix to base36 id"""
         prefix = self.reddit.config.kinds[kind]
-        return prefix + '_' + short_id
+        return f'{prefix}_{short_id}'
 
     def _exit_handler(self, signum, frame):
         # disconnect db
@@ -41,7 +45,7 @@ class APIProcess(object):
         with closing(self.db.cursor()) as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS kv_store(
-                    key VARCHAR(32),
+                    key VARCHAR(256),
                     value VARCHAR(256),
                         CONSTRAINT kv_store_pkey PRIMARY KEY(key));
             """)
@@ -84,7 +88,7 @@ class APIProcess(object):
 class XMLProcess(APIProcess):
     ATOM_NS = {'atom': 'http://www.w3.org/2005/Atom'}
 
-    def __init__(self, subreddit, interval):
+    def __init__(self, subreddit, path, kind_class, interval):
         # create PRAW instance and db connection
         super().__init__()
 
@@ -93,12 +97,30 @@ class XMLProcess(APIProcess):
         self.http_session.headers.update({'user-agent': self.reddit.config.user_agent})
 
         # feed global params
-        self.subreddit, self.interval = subreddit, int(interval)
+        self.subreddit, self.path, self.kind_class, self.interval = subreddit, path, kind_class, int(interval)
+        self.kind = self.reddit.config.kinds[self.kind_class.__name__.lower()]
 
         # private (stateful) vars
         self._last_timestamp = None
+        self._after_full_id = None
+        self._db_key = f'{self.subreddit}_{self.path}_after_full_id'
 
-    def _query_feed(self, path, **query):
+    def _exit_handler(self, signum, frame):
+        if self._after_full_id is not None:
+            # save last id seen for this path
+            with closing(self.db.cursor()) as cur:
+                cur.execute("""
+                    INSERT INTO kv_store(key, value) VALUES(%s, %s)
+                    ON CONFLICT ON CONSTRAINT kv_store_pkey
+                        DO UPDATE SET value=%s WHERE kv_store.key=%s;
+                """, (self._db_key, self._after_full_id,
+                      self._after_full_id, self._db_key))
+                self.db.commit()
+
+        # terminate process
+        super()._exit_handler(signum, frame)
+
+    def _query_feed(self, **query):
         """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
         if self._last_timestamp is not None:
             delay = (self._last_timestamp + timedelta(seconds=self.interval) - datetime.utcnow()).total_seconds()
@@ -106,7 +128,7 @@ class XMLProcess(APIProcess):
             if delay > 0:
                 sleep(delay)
 
-        feed_url = f'https://www.reddit.com/r/{self.subreddit}/{path}/.rss'
+        feed_url = f'https://www.reddit.com/r/{self.subreddit}/{self.path}/.rss'
         response = self.http_session.get(feed_url, params=query)
 
         self._last_timestamp = datetime.utcnow()
@@ -148,6 +170,45 @@ class XMLProcess(APIProcess):
                 'title': title,
             }
 
-    def get_last_submission(self, path):
+    def get_last_entry(self):
         """Retrieve the newest submission from the subreddit"""
-        return self._query_feed(path, limit=1)
+        return self._query_feed(limit=1)
+
+    def iter_entries(self, after=None):
+        """Infinite generator that yields entry dicts in the order they were published"""
+        if after is None:
+            # check if we've stored the id on the previous run
+            with closing(self.db.cursor()) as cur:
+                cur.execute("""
+                    SELECT value FROM kv_store
+                        WHERE key=%s;
+                """, (self._db_key,))
+                res = cur.fetchone()
+
+            if res is not None:
+                self._after_full_id = res[0]
+            else:
+                # retrieve last submission from feed
+                last = self.get_last_entry()
+                entries = tuple(self._parse_feed(last))
+                self._after_full_id = entries[0]['id']
+        elif re.fullmatch(self.kind + '_' + self.base36_pattern, after):
+            # received full_id
+            self._after_full_id = after
+        elif re.fullmatch(self.base36_pattern, after):
+            # received short_id
+            self._after_full_id = f'{self.kind}_{after}'
+        else:
+            # extract id from submission url or raise ValueError
+            after_short_id = self.kind_class.id_from_url(after)
+            self._after_full_id = f'{self.kind}_{after_short_id}'
+
+        while True:
+            # we'll output from oldest to newest but Reddit shows newest first on its feed
+            # in order to retrieve the entries published "after" the given one
+            # we need to ask for the ones that appear "before" that one in the feed
+            response = self._query_feed(before=self._after_full_id)
+            for entry_dict in reversed(tuple(self._parse_feed(response))):
+                yield entry_dict
+                # keep track of the id for the next _query_feed() call
+                self._after_full_id = entry_dict['id']
