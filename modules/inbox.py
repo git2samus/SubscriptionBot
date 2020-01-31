@@ -53,13 +53,15 @@ class InboxProcess(APIProcess):
 
             if match.group(1) == 'Subscribe':
                 query_sql = """
-                    INSERT INTO subscription(submission_id, user_name) VALUES (%s, %s)
+                    INSERT INTO subscription(submission_id, user_name)
+                        VALUES (%s, %s)
                     ON CONFLICT ON CONSTRAINT subscription_pkey
                         DO NOTHING;
                 """
             else:
                 query_sql = """
-                    DELETE FROM subscription WHERE submission_id=%s AND user_name=%s;
+                    DELETE FROM subscription
+                        WHERE submission_id=%s AND user_name=%s;
                 """
 
             with closing(self.db.cursor()) as cur:

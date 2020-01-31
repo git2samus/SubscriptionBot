@@ -3,7 +3,7 @@ import praw, psycopg2
 import requests
 import xml.etree.ElementTree as ET
 from sys import exit
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from time import sleep
 from configparser import ConfigParser
 from contextlib import closing
@@ -53,7 +53,8 @@ class APIProcess(object):
 
             # get current db version (if any)
             cur.execute("""
-                SELECT value FROM kv_store WHERE key='version';
+                SELECT value FROM kv_store
+                    WHERE key='version';
             """)
             res = cur.fetchone()
 
@@ -69,13 +70,15 @@ class APIProcess(object):
                         user_name VARCHAR(256),
                             CONSTRAINT subscription_pkey PRIMARY KEY(submission_id, user_name));
 
-                    CREATE TABLE comment_count(
+                    CREATE TABLE comment(
                         submission_id VARCHAR(16),
-                        submission_date DATE,
+                        user_name VARCHAR(256),
+                        comment_date DATE,
                         comment_count INTEGER DEFAULT 0,
-                            CONSTRAINT comment_count_pkey PRIMARY KEY(submission_id, submission_date));
+                            CONSTRAINT comment_pkey PRIMARY KEY(submission_id, user_name, comment_date));
 
-                    INSERT INTO kv_store(key, value) VALUES ('version', %s);
+                    INSERT INTO kv_store(key, value)
+                        VALUES ('version', %s);
                 """, (source_version,))
                 self.db.commit()
 
@@ -110,7 +113,8 @@ class XMLProcess(APIProcess):
             # save last id seen for this path
             with closing(self.db.cursor()) as cur:
                 cur.execute("""
-                    INSERT INTO kv_store(key, value) VALUES(%s, %s)
+                    INSERT INTO kv_store(key, value)
+                        VALUES(%s, %s)
                     ON CONFLICT ON CONSTRAINT kv_store_pkey
                         DO UPDATE SET value=%s WHERE kv_store.key=%s;
                 """, (self._db_key, self._after_full_id,
@@ -156,7 +160,7 @@ class XMLProcess(APIProcess):
             link = entry_elem.find('atom:link', self.ATOM_NS).attrib['href']
 
             updated = entry_elem.find('atom:updated', self.ATOM_NS).text
-            updated_dt = datetime.strptime(updated, '%Y-%m-%dT%H:%M:%S%z')
+            updated_dt = datetime.fromisoformat(updated).astimezone(timezone.utc)
 
             title = entry_elem.find('atom:title', self.ATOM_NS).text
 

@@ -18,3 +18,8 @@ user_agent=script:%(bot_name)s:v%(bot_version)s (by /u/%(bot_author)s)
 bot_submission_comment_template=<bot-submission-comment-template>
 bot_subscribe_message_template=<bot-subscribe-message-template>
 bot_unsubscribe_message_template=<bot-unsubscribe-message-template>
+
+# time at which we cut the comment counting for the day and start counting the following day (ISO format, tz-aware)
+bot_comments_cutoff_time=<bot-comments-cutoff-time>
+# comma-separated list of users to ignore when counting comments
+bot_comments_blacklist=%(bot_username)s,AutoModerator
