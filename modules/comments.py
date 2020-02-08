@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Comment Parser
 
-Usage: bot.py comments <subreddit> [--refresh=<interval>] [--after=<comment-url>] [--debug]
+Usage: bot.py comments <subreddit> [--after=<comment-url>] [--debug]
        bot.py comments -h | --help
 
 Options:
-    --refresh=<interval>        Interval in seconds at which the feed is requested, shorter intervals may be rate-limited by Reddit [default: 60]
     --after=<comment-url>       Only process submissions newer than <comment-url> (if omitted will process any new comment since started)
                                 Accepts Reddit IDs or URL formats supported by https://praw.readthedocs.io/en/v6.4.0/code_overview/models/comment.html#praw.models.Comment.id_from_url
                                 When the process restarts it'll continue from the last comment seen unless overriden by this parameter
     --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
-When invoked it'll start a process that will retrieve new comments from the <subreddit> subreddit at <interval> seconds
+When invoked it'll start a process that will retrieve comments from the <subreddit> subreddit, starting from <comment-url>
 Each comment will be counted and grouped by day starting at "bot_comments_cutoff_time" from praw.ini
 """
 from praw.models import Comment, Submission
@@ -24,9 +23,9 @@ from utils import setup_http_debugging
 
 
 class CommentProcess(XMLProcess):
-    def __init__(self, subreddit, interval):
+    def __init__(self, subreddit):
         # setup PRAW, db and http session
-        super().__init__(subreddit, 'comments', Comment, interval)
+        super().__init__(subreddit, 'comments', Comment)
 
         self.cutoff_time = self.reddit.config.custom['bot_comments_cutoff_time']
         self.cutoff_time = time.fromisoformat(self.cutoff_time)
@@ -87,8 +86,8 @@ if __name__ == '__main__':
     if args['--debug']:
         setup_http_debugging()
 
-    subreddit, interval = args['<subreddit>'], args['--refresh']
-    comment_process = CommentProcess(subreddit, interval)
+    subreddit = args['<subreddit>']
+    comment_process = CommentProcess(subreddit)
 
     after = args['--after']
     comment_process.run(after)

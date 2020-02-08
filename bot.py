@@ -39,11 +39,11 @@ if __name__ == '__main__':
     # check the arguments to see if any has set the value
     praw_site = os.getenv('praw_site')
     if praw_site is None:
-        raise DocoptExit("Missing PRAW_SITE value.\n")
+        raise DocoptExit("Missing PRAW_SITE variable.\n")
 
     database_url = os.getenv('DATABASE_URL')
     if database_url is None:
-        raise DocoptExit("Missing DATABASE_URL value.\n")
+        raise DocoptExit("Missing DATABASE_URL variable.\n")
 
     # communicate source version to the next step
     os.environ['SOURCE_VERSION'] = __version__

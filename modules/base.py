@@ -91,7 +91,7 @@ class APIProcess(object):
 class XMLProcess(APIProcess):
     ATOM_NS = {'atom': 'http://www.w3.org/2005/Atom'}
 
-    def __init__(self, subreddit, path, kind_class, interval):
+    def __init__(self, subreddit, path, kind_class):
         # create PRAW instance and db connection
         super().__init__()
 
@@ -100,7 +100,7 @@ class XMLProcess(APIProcess):
         self.http_session.headers.update({'user-agent': self.reddit.config.user_agent})
 
         # feed global params
-        self.subreddit, self.path, self.kind_class, self.interval = subreddit, path, kind_class, int(interval)
+        self.subreddit, self.path, self.kind_class = subreddit, path, kind_class
         self.kind = self.reddit.config.kinds[self.kind_class.__name__.lower()]
 
         # private (stateful) vars
@@ -125,24 +125,38 @@ class XMLProcess(APIProcess):
         super()._exit_handler(signum, frame)
 
     def _query_feed(self, **query):
-        """Query the subreddit feed with the given params, will block up to <interval> seconds since last request"""
-        if self._last_timestamp is not None:
-            delay = (self._last_timestamp + timedelta(seconds=self.interval) - datetime.utcnow()).total_seconds()
-
-            if delay > 0:
-                sleep(delay)
+        """Query the subreddit feed with the given params, return a list of entries from oldest to newest"""
 
         feed_url = f'https://www.reddit.com/r/{self.subreddit}/{self.path}/.rss'
-        response = self.http_session.get(feed_url, params=query)
 
-        self._last_timestamp = datetime.utcnow()
-        return response
+        # feeds seem to be limited to 100 results per page
+        query.setdefault('limit', 100)
 
-    def _parse_feed(self, response):
-        """Get a feed response and return a generator of submission dicts"""
-        root_elem = ET.fromstring(response.text)
+        # the error message from the feed says not to request more than once every two seconds and has a retry counter but it doesn't seem reliable
+        delay, max_delay = 5, 160
+        while True:
+            if self._last_timestamp is not None:
+                wait = (self._last_timestamp + timedelta(seconds=delay) - datetime.utcnow()).total_seconds()
+                if wait > 0:
+                    #XXX log
+                    sleep(wait)
 
-        entries = root_elem.iterfind('atom:entry', self.ATOM_NS)
+            response = self.http_session.get(feed_url, params=query)
+            self._last_timestamp = datetime.utcnow()
+
+            if response.text.startswith('<!doctype html>'):
+                #XXX warning
+                pass
+            else:
+                root_elem = ET.fromstring(response.text)
+                entries = root_elem.findall('atom:entry', self.ATOM_NS)
+
+                if len(entries) > 0:
+                    break
+
+            delay = min(2 * delay, max_delay)
+
+        result = []
         for entry_elem in entries:
             author_elem = entry_elem.find('atom:author', self.ATOM_NS)
             author = {
@@ -164,7 +178,7 @@ class XMLProcess(APIProcess):
 
             title = entry_elem.find('atom:title', self.ATOM_NS).text
 
-            yield {
+            result.append({
                 'author': author,
                 'category': category,
                 'content': content,
@@ -172,11 +186,14 @@ class XMLProcess(APIProcess):
                 'link': link,
                 'updated': updated_dt,
                 'title': title,
-            }
+            })
+
+        result.reverse()
+        return result
 
     def get_last_entry(self):
         """Retrieve the newest submission from the subreddit"""
-        return self._query_feed(limit=1)
+        return self._query_feed(limit=1)[0]
 
     def iter_entries(self, after=None):
         """Infinite generator that yields entry dicts in the order they were published"""
@@ -194,8 +211,7 @@ class XMLProcess(APIProcess):
             else:
                 # retrieve last submission from feed
                 last = self.get_last_entry()
-                entries = tuple(self._parse_feed(last))
-                self._after_full_id = entries[0]['id']
+                self._after_full_id = last['id']
         elif re.fullmatch(self.kind + '_' + self.base36_pattern, after):
             # received full_id
             self._after_full_id = after
@@ -211,8 +227,7 @@ class XMLProcess(APIProcess):
             # we'll output from oldest to newest but Reddit shows newest first on its feed
             # in order to retrieve the entries published "after" the given one
             # we need to ask for the ones that appear "before" that one in the feed
-            response = self._query_feed(before=self._after_full_id)
-            for entry_dict in reversed(tuple(self._parse_feed(response))):
+            for entry_dict in self._query_feed(before=self._after_full_id):
                 yield entry_dict
                 # keep track of the id for the next _query_feed() call
                 self._after_full_id = entry_dict['id']

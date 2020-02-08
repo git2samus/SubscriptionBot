@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Feed Parser
 
-Usage: bot.py feed <subreddit> [--refresh=<interval>] [--sticky] [--after=<submission-url>] [--debug]
+Usage: bot.py feed <subreddit> [--sticky] [--after=<submission-url>] [--debug]
        bot.py feed -h | --help
 
 Options:
-    --refresh=<interval>        Interval in seconds at which the feed is requested, shorter intervals may be rate-limited by Reddit [default: 60]
     --sticky                    Whether or not to make bot comments sticky on posts (requires bot permissions on Reddit)
     --after=<submission-url>    Only process submissions newer than <submission-url> (if omitted will process any new submission since started)
                                 Accepts Reddit IDs or URL formats supported by https://praw.readthedocs.io/en/v6.4.0/code_overview/models/submission.html#praw.models.Submission.id_from_url
@@ -13,7 +12,7 @@ Options:
     --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
-When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit at <interval> seconds
+When invoked it'll start a process that will retrieve new submissions from the <subreddit> subreddit, starting from <submission-url>
 For each new submission a comment from the bot will be posted following the 'bot_comment_template' string pattern from praw.ini
 """
 from praw.models import Submission
@@ -24,9 +23,9 @@ from utils import setup_http_debugging
 
 
 class FeedProcess(XMLProcess):
-    def __init__(self, subreddit, interval, sticky):
+    def __init__(self, subreddit, sticky):
         # setup PRAW, db and http session
-        super().__init__(subreddit, 'new', Submission, interval)
+        super().__init__(subreddit, 'new', Submission)
 
         self.sticky = sticky
 
@@ -80,8 +79,8 @@ if __name__ == '__main__':
     if args['--debug']:
         setup_http_debugging()
 
-    subreddit, interval, sticky = args['<subreddit>'], args['--refresh'], args['--sticky']
-    feed_process = FeedProcess(subreddit, interval, sticky)
+    subreddit, sticky = args['<subreddit>'], args['--sticky']
+    feed_process = FeedProcess(subreddit, sticky)
 
     after = args['--after']
     feed_process.run(after)
