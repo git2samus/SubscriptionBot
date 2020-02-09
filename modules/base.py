@@ -133,12 +133,13 @@ class XMLProcess(APIProcess):
         query.setdefault('limit', 100)
 
         # the error message from the feed says not to request more than once every two seconds and has a retry counter but it doesn't seem reliable
-        delay, max_delay = 5, 160
+        delay, max_delay = 15, 120
         while True:
             if self._last_timestamp is not None:
                 wait = (self._last_timestamp + timedelta(seconds=delay) - datetime.utcnow()).total_seconds()
                 if wait > 0:
                     #XXX log
+                    print(f'@@@ wait {wait}s')
                     sleep(wait)
 
             response = self.http_session.get(feed_url, params=query)
@@ -146,6 +147,8 @@ class XMLProcess(APIProcess):
 
             if response.text.startswith('<!doctype html>'):
                 #XXX warning
+                print(f'@@@ html doctype')
+                print(response.text)
                 pass
             else:
                 root_elem = ET.fromstring(response.text)
