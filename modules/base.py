@@ -82,8 +82,7 @@ class APIProcess(object):
                 """, (source_version,))
                 self.db.commit()
 
-    def run(self):
-        # setup interrupt handlers
+    def setup_interrupt_handlers(self):
         signal.signal(signal.SIGINT, self._exit_handler)
         signal.signal(signal.SIGTERM, self._exit_handler)
 

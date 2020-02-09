@@ -75,8 +75,7 @@ class InboxProcess(APIProcess):
 
     def run(self):
         """Start process"""
-        # setup interrupt handlers
-        super().run()
+        self.setup_interrupt_handlers()
 
         for item in self.reddit.inbox.stream():
             if isinstance(item, Message):

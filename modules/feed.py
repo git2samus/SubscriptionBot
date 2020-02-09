@@ -66,8 +66,7 @@ class FeedProcess(XMLProcess):
 
     def run(self, after=None, reset=False):
         """Start process"""
-        # setup interrupt handlers
-        super().run()
+        self.setup_interrupt_handlers()
 
         # process submissions
         for entry_dict in self.iter_entries(after, reset):

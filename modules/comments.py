@@ -64,8 +64,7 @@ class CommentProcess(XMLProcess):
 
     def run(self, after=None, reset=False):
         """Start process"""
-        # setup interrupt handlers
-        super().run()
+        self.setup_interrupt_handlers()
 
         # process submissions
         blacklist = self.reddit.config.custom['bot_comments_blacklist']
