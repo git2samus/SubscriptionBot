@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Feed Parser
 
-Usage: bot.py feed <subreddit> [--sticky] [--after=<submission-url>] [--debug]
+Usage: bot.py feed <subreddit> [--sticky] [(--after=<submission-url>|--reset-after)] [--debug]
        bot.py feed -h | --help
 
 Options:
@@ -9,6 +9,7 @@ Options:
     --after=<submission-url>    Only process submissions newer than <submission-url> (if omitted will process any new submission since started)
                                 Accepts Reddit IDs or URL formats supported by https://praw.readthedocs.io/en/v6.4.0/code_overview/models/submission.html#praw.models.Submission.id_from_url
                                 When the process restarts it'll continue from the last submission seen unless overriden by this parameter
+    --reset-after               Reset previously saved <submission-url> on database from previous runs
     --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
@@ -63,13 +64,13 @@ class FeedProcess(XMLProcess):
         if self.sticky:
             comment.mod.distinguish(sticky=True)
 
-    def run(self, after=None):
+    def run(self, after=None, reset=False):
         """Start process"""
         # setup interrupt handlers
         super().run()
 
         # process submissions
-        for entry_dict in self.iter_entries(after):
+        for entry_dict in self.iter_entries(after, reset):
             self.add_bot_comment(entry_dict)
 
 
@@ -82,5 +83,5 @@ if __name__ == '__main__':
     subreddit, sticky = args['<subreddit>'], args['--sticky']
     feed_process = FeedProcess(subreddit, sticky)
 
-    after = args['--after']
-    feed_process.run(after)
+    after, reset = args['--after'], args['--reset-after']
+    feed_process.run(after, reset)

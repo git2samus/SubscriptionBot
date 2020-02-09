@@ -196,11 +196,14 @@ class XMLProcess(APIProcess):
 
     def get_last_entry(self):
         """Retrieve the newest submission from the subreddit"""
-        return self._query_feed(limit=1)[0]
+        entries = self._query_feed(limit=1)
+        self._after_full_id = entries[0]['id']
 
-    def iter_entries(self, after=None):
+    def iter_entries(self, after=None, reset=False):
         """Infinite generator that yields entry dicts in the order they were published"""
-        if after is None:
+        if reset:
+            self.get_last_entry()
+        elif after is None:
             # check if we've stored the id on the previous run
             with closing(self.db.cursor()) as cur:
                 cur.execute("""
@@ -212,9 +215,7 @@ class XMLProcess(APIProcess):
             if res is not None:
                 self._after_full_id = res[0]
             else:
-                # retrieve last submission from feed
-                last = self.get_last_entry()
-                self._after_full_id = last['id']
+                self.get_last_entry()
         elif re.fullmatch(self.kind + '_' + self.base36_pattern, after):
             # received full_id
             self._after_full_id = after

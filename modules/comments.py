@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Comment Parser
 
-Usage: bot.py comments <subreddit> [--after=<comment-url>] [--debug]
+Usage: bot.py comments <subreddit> [(--after=<comment-url>|--reset-after)] [--debug]
        bot.py comments -h | --help
 
 Options:
     --after=<comment-url>       Only process submissions newer than <comment-url> (if omitted will process any new comment since started)
                                 Accepts Reddit IDs or URL formats supported by https://praw.readthedocs.io/en/v6.4.0/code_overview/models/comment.html#praw.models.Comment.id_from_url
                                 When the process restarts it'll continue from the last comment seen unless overriden by this parameter
+    --reset-after               Reset previously saved <comment-url> on database from previous runs
     --debug                     Enable HTTP debugging
     -h, --help                  Show this screen
 
@@ -61,7 +62,7 @@ class CommentProcess(XMLProcess):
                   submission_short_id, comment_author, comment_date))
             self.db.commit()
 
-    def run(self, after=None):
+    def run(self, after=None, reset=False):
         """Start process"""
         # setup interrupt handlers
         super().run()
@@ -73,7 +74,7 @@ class CommentProcess(XMLProcess):
             for name in blacklist.split(',')
         }
 
-        for entry_dict in self.iter_entries(after):
+        for entry_dict in self.iter_entries(after, reset):
             author = entry_dict['author']['name'][3:].lower()
 
             if author not in blacklist:
@@ -89,5 +90,5 @@ if __name__ == '__main__':
     subreddit = args['<subreddit>']
     comment_process = CommentProcess(subreddit)
 
-    after = args['--after']
-    comment_process.run(after)
+    after, reset = args['--after'], args['--reset-after']
+    comment_process.run(after, reset)
