@@ -162,7 +162,7 @@ class XMLProcess(APIProcess):
         for entry_elem in entries:
             author_elem = entry_elem.find('atom:author', self.ATOM_NS)
             author = {
-                'name': author_elem.find('atom:name', self.ATOM_NS).text,
+                'name': author_elem.find('atom:name', self.ATOM_NS).text[3:],
                 'uri': author_elem.find('atom:uri', self.ATOM_NS).text,
             }
 
@@ -181,7 +181,8 @@ class XMLProcess(APIProcess):
             title = entry_elem.find('atom:title', self.ATOM_NS).text
 
             result.append({
-                'author': author,
+                'author_name': author['name'],
+                'author_uri': author['uri'],
                 'category': category,
                 'content': content,
                 'id': full_id,

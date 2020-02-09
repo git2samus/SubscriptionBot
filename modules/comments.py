@@ -74,7 +74,7 @@ class CommentProcess(XMLProcess):
         }
 
         for entry_dict in self.iter_entries(after, reset):
-            author = entry_dict['author']['name'][3:].lower()
+            author = entry_dict['author_name'].lower()
 
             if author not in blacklist:
                 self.register_comment(entry_dict)
