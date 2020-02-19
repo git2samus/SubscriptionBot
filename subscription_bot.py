@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot
 
-Usage: bot.py <command> [<args>...]
-       bot.py -h | --help
-       bot.py --version
+Usage: subscription_bot.py <command> [<args>...]
+       subscription_bot.py -h | --help
+       subscription_bot.py --version
 
 Options:
     -h, --help                  Show this screen
@@ -13,13 +13,13 @@ Environment Variables:
     PRAW_SITE                   The name of the config section on praw.ini for this process
     DATABASE_URL                URI of the Postgres instance to use
 
-The bot.py commands are:
+The subscription_bot.py commands are:
     feed                        Run the subreddit feed parser and comment on new topics
     inbox                       Run the inbox parser and update subscription lists
     comments                    Run the comment parser and track updates on topics
     notifications               Send the notifications for the tracked topics
 
-See 'bot.py help <command>' for more information on a specific command.
+See 'subscription_bot.py help <command>' for more information on a specific command.
 """
 import os
 from sys import exit
@@ -64,11 +64,11 @@ if __name__ == '__main__':
             os.execvp('python3', ['python3', f'modules/{help_command}.py', '--help'])
 
         # invalid subcommand
-        exit(f"{help_command} is not a bot.py command. See 'bot.py help'.")
+        exit(f"{help_command} is not a subscription_bot.py command. See 'subscription_bot.py help'.")
 
     if command in ('help', None):
         # general help
-        os.execvp('python3', ['python3', 'bot.py', '--help'])
+        os.execvp('python3', ['python3', 'subscription_bot.py', '--help'])
 
     # invalid subcommand
-    exit(f"{command} is not a bot.py command. See 'bot.py help'.")
+    exit(f"{command} is not a subscription_bot.py command. See 'subscription_bot.py help'.")

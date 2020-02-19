@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Comment Parser
 
-Usage: bot.py comments <subreddit> [(--after=<comment-url>|--reset-after)] [--debug]
-       bot.py comments -h | --help
+Usage: subscription_bot.py comments <subreddit> [(--after=<comment-url>|--reset-after)] [--debug]
+       subscription_bot.py comments -h | --help
 
 Options:
     --after=<comment-url>       Only process submissions newer than <comment-url> (if omitted will process any new comment since started)

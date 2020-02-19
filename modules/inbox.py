@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Inbox Parser
 
-Usage: bot.py inbox [--debug]
-       bot.py inbox -h | --help
+Usage: subscription_bot.py inbox [--debug]
+       subscription_bot.py inbox -h | --help
 
 Options:
     --debug                     Enable HTTP debugging

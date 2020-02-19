@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Reddit SubscriptionBot - Feed Parser
 
-Usage: bot.py feed <subreddit> [--sticky] [(--after=<submission-url>|--reset-after)] [--debug]
-       bot.py feed -h | --help
+Usage: subscription_bot.py feed <subreddit> [--sticky] [(--after=<submission-url>|--reset-after)] [--debug]
+       subscription_bot.py feed -h | --help
 
 Options:
     --sticky                    Whether or not to make bot comments sticky on posts (requires bot permissions on Reddit)
