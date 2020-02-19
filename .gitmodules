@@ -1,0 +1,3 @@
+[submodule "modules/shared"]
+	path = modules/shared
+	url = git@github.com:git2samus/reddit-bot-shared.git

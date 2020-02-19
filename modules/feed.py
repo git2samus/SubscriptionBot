@@ -19,8 +19,8 @@ For each new submission a comment from the bot will be posted following the 'bot
 from praw.models import Submission
 from docopt import docopt
 from urllib.parse import urljoin, urlencode, quote
-from base import XMLProcess
-from utils import setup_http_debugging
+from shared.base import XMLProcess
+from shared.utils import setup_http_debugging
 
 
 class FeedProcess(XMLProcess):

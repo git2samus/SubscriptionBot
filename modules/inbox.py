@@ -14,8 +14,8 @@ import re
 from praw.models import Message
 from docopt import docopt
 from contextlib import closing
-from base import APIProcess
-from utils import setup_http_debugging
+from shared.base import APIProcess
+from shared.utils import setup_http_debugging
 
 
 class InboxProcess(APIProcess):

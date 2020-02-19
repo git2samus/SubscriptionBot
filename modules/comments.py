@@ -19,8 +19,8 @@ from praw.models import Comment, Submission
 from docopt import docopt
 from datetime import time, timedelta
 from contextlib import closing
-from base import XMLProcess
-from utils import setup_http_debugging
+from shared.base import XMLProcess
+from shared.utils import setup_http_debugging
 
 
 class CommentProcess(XMLProcess):
